@@ -618,3 +618,159 @@ test.skip("0 더하기 1 은 4", () => {
 });
 -> `skip`을 사용해서 `skip`을 사용한 테스트를 제외한 나머지를 테스트
 ```
+
+## 목 함수(Mock Functions) - 테스트 하기 위해 흉내만 내는 함수
+
+```js
+*** `Calls`
+
+const mockFn = jest.fn();
+
+function forEachAdd1(arr) {
+  arr.forEach((num) => {
+    // fn(num + 1)
+    mockFn(num + 1);
+  });
+}
+
+forEachAdd1([10, 20, 30]);
+
+test("함수호출은 3번 됩니다.", () => {
+  expect(mockFn.mock.calls.length).toBe(3);
+});
+test("전단될 값은 11,21,31 입니다.", () => {
+  expect(mockFn.mock.calls[0][0]).toBe(11);
+  expect(mockFn.mock.calls[1][0]).toBe(21);
+  expect(mockFn.mock.calls[2][0]).toBe(31);
+}); ->//Pass mockFn.mock.calls = [ [ 11 ], [ 21 ], [ 31 ] ]
+
+and ***`results`
+
+const mockFn = jest.fn((num) => num + 1);
+
+mockFn(10);
+mockFn(20);
+mockFn(30);
+
+test("10에서 1 증가한 값이 반환된다.", () => {
+  console.log(mockFn.mock.results);
+  expect(mockFn.mock.results[0].value).toBe(11);
+});
+
+test("20에서 1 증가한 값이 반환된다.", () => {
+  expect(mockFn.mock.results[1].value).toBe(21);
+});
+
+test("30에서 1 증가한 값이 반환된다.", () => {
+  expect(mockFn.mock.results[2].value).toBe(31);
+}); ->//Pass
+/* `mockFn.mock.results`
+[
+      { type: 'return', value: 11 },
+      { type: 'return', value: 21 },
+      { type: 'return', value: 31 }
+    ]
+*/
+
+and ***`mockReturnValueOnce`
+
+const mockFn = jest.fn();
+
+mockFn
+  .mockReturnValueOnce(10)
+  .mockReturnValueOnce(20)
+  .mockReturnValueOnce(30)
+  .mockReturnValue(40); //마지막에는 Once 제거
+
+mockFn();
+mockFn();
+mockFn();
+mockFn();
+
+test("dd", () => {
+  console.log(mockFn.mock.results);
+  expect("dd").toBe("dd");
+});
+->     [
+      { type: 'return', value: 10 },
+      { type: 'return', value: 20 },
+      { type: 'return', value: 30 },
+      { type: 'return', value: 40 }
+    ] 값이 변경됨
+
+-> `mockReturnValueOnce`을 사용한 예시 1,3,5 홀수 찾기
+const mockFn = jest.fn();
+
+mockFn
+  .mockReturnValueOnce(true)
+  .mockReturnValueOnce(false)
+  .mockReturnValueOnce(true)
+  .mockReturnValueOnce(false)
+  .mockReturnValue(true);
+
+const result = [1, 2, 3, 4, 5].filter((num) => mockFn(num));
+
+test("홀수는 1,3,5", () => {
+  expect(result).toStrictEqual([1, 3, 5]);
+});
+
+***`mockResolvedValue`를 사용하여 비동기 목 함수
+const mockFn = jest.fn();
+
+mockFn.mockResolvedValue({ name: "Mike" });
+
+test("받아올 이름은 Mike", () => {
+  mockFn().then((res) => {
+    expect(res.name).toBe("Mike");
+  });
+});
+
+**** DB예시 db에서 유저 생성
+  createUser: (name) => {
+    console.log("실제로 사용자가 생성되었습니다.");
+    return {
+      name,
+    };
+  },
+
+//Test
+const fn = require("./fn");
+
+test("유저를 만든다.", () => {
+  const user = fn.createUser("Mike");
+  expect(user.name).toBe("Mike");
+});
+->//Pass console에 `실제로 사용자가 생성되었습니다.`가 찍힘
+->해결
+const fn = require("./fn");
+
+jest.mock("./fn");
+
+fn.createUser.mockReturnValue({ name: "Mike" });
+
+test("유저를 만든다.", () => {
+  const user = fn.createUser("Mike");
+  expect(user.name).toBe("Mike");
+});
+->// Pass 가상의 Mike를 만들어서 사용 console에 `실제로 사용자가 생성되었습니다.`가 찍히지 않음
+
+*** 호출된 함수 확인
+const mockFn = jest.fn();
+
+mockFn(10, 20);
+mockFn();
+mockFn(30, 40);
+
+test("한번 이상 호출", () => {
+  expect(mockFn).toBeCalled();
+});
+test("정확히 세번 호출?", () => {
+  expect(mockFn).toBeCalledTimes(3);
+});
+test("10이랑 20 전달 받은 함수가 있는가?", () => {
+  expect(mockFn).toBeCalledWith(10, 20);
+});
+test("마지막 함수는 30이랑 40을 받았는지", () => {
+  expect(mockFn).lastCalledWith(30, 40);
+});
+```
