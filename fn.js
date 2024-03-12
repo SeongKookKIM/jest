@@ -1,18 +1,39 @@
 const fn = {
   add: (num1, num2) => num1 + num2,
-  getName: (callback) => {
-    const name = "Mike";
-    setTimeout(() => {
-      callback(name);
-    }, 3000);
-  },
-  getAge: () => {
-    const age = 30;
-    return new Promise((res, rej) => {
+  connectUserDb: () => {
+    return new Promise((res) => {
       setTimeout(() => {
-        res(age);
-        // rej("error");
-      }, 3000);
+        res({
+          name: "Mike",
+          age: 30,
+          gender: "male",
+        });
+      }, 500);
+    });
+  },
+  disConnectDb: () => {
+    return new Promise((res) => {
+      setTimeout(() => {
+        res();
+      }, 500);
+    });
+  },
+  connectCarDb: () => {
+    return new Promise((res) => {
+      setTimeout(() => {
+        res({
+          brand: "bmw",
+          name: "z4",
+          color: "red",
+        });
+      }, 500);
+    });
+  },
+  disConnectCarDb: () => {
+    return new Promise((res) => {
+      setTimeout(() => {
+        res();
+      }, 500);
     });
   },
 };

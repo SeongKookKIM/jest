@@ -311,3 +311,310 @@ test("3초 후에 에러가 납니다.", async () => {
   await expect(fn.getAge()).resolves.toBe(30);
 }); ->//Pass 정상 작동 async-await 에서도 resolves / rejects 사용 가능
 ```
+
+## 테스트 전후 작업
+
+```js
+let num = 0;
+
+test("0 더하기 1 은 1 이다.", () => {
+  num = fn.add(num, 1);
+  expect(num).toBe(1);
+});
+
+test("0 더하기 2  은 2 이다.", () => {
+  num = fn.add(num, 2);
+  expect(num).toBe(2);
+});
+
+test("0 더하기 3 은 3 이다.", () => {
+  num = fn.add(num, 3);
+  expect(num).toBe(3);
+});
+
+test("0 더하기 4 은 4 이다.", () => {
+  num = fn.add(num, 4);
+  expect(num).toBe(4);
+});
+
+결과:
+√ 0 더하기 1 은 1 이다. (2 ms)
+× 0 더하기 2  은 2 이다. (2 ms)
+× 0 더하기 3 은 3 이다.
+× 0 더하기 4 은 4 이다.
+
+문제: num이 새로운 값으로 할당 됨
+
+해결:
+beforeEach(() => {
+  num = 0;
+});
+beforeEach를 사용함으로써 테스트 실행 전 num이 0으로 할당되기 떄문
+
+
+let num = 10;
+
+afterEach(() => {
+  num = 0;
+});
+
+test("0 더하기 1 은 1 이다.", () => {
+  num = fn.add(num, 1);
+  expect(num).toBe(1);
+});
+
+test("0 더하기 2  은 2 이다.", () => {
+  num = fn.add(num, 2);
+  expect(num).toBe(2);
+});
+
+test("0 더하기 3 은 3 이다.", () => {
+  num = fn.add(num, 3);
+  expect(num).toBe(3);
+});
+
+test("0 더하기 4 은 4 이다.", () => {
+  num = fn.add(num, 4);
+  expect(num).toBe(4);
+});
+
+결과:
+  × 0 더하기 1 은 1 이다. (4 ms)
+  √ 0 더하기 2  은 2 이다.
+  √ 0 더하기 3 은 3 이다.
+  √ 0 더하기 4 은 4 이다. (1 ms)
+
+문제: afterEach는 테스트가 끝난 후에 num을 0으로 할당
+```
+
+and
+
+`db 사용 예시`
+
+```js
+const fn = {
+  add: (num1, num2) => num1 + num2,
+  connectUserDb: () => {
+    return new Promise((res) => {
+      setTimeout(() => {
+        res({
+          name: "Mike",
+          age: 30,
+          gender: "male",
+        });
+      }, 500);
+    });
+  },
+  disConnectDb: () => {
+    return new Promise((res) => {
+      setTimeout(() => {
+        res();
+      }, 500);
+    });
+  },
+};
+
+// Test
+let user;
+
+beforeEach(async () => {
+  user = await fn.connectUserDb();
+});
+
+afterEach(() => {
+  return fn.disConnectDb();
+});
+
+test("이름은 Mike", () => {
+  expect(user.name).toBe("Mike");
+});
+test("나이는 30", () => {
+  expect(user.age).toBe(30);
+});
+test("성별은 남성", () => {
+  expect(user.gender).toBe("male");
+});
+ -> Pass가 되지만 테스트가 시작,끝나는 구간마다 연결 및 끊음을 반복하여 시간이 오래걸림
+ 해결: 처음시작시에 한 번만 가져오고 모든 작업이 끝난 후 열결 끊음
+ beforeAll(async () => {
+  user = await fn.connectUserDb();
+});
+afterAll(() => {
+  return fn.disConnectDb();
+});
+을 사용하여서 해결
+
+and
+
+const fn = {
+  add: (num1, num2) => num1 + num2,
+  connectUserDb: () => {
+    return new Promise((res) => {
+      setTimeout(() => {
+        res({
+          name: "Mike",
+          age: 30,
+          gender: "male",
+        });
+      }, 500);
+    });
+  },
+  disConnectDb: () => {
+    return new Promise((res) => {
+      setTimeout(() => {
+        res();
+      }, 500);
+    });
+  },
+  connectCarDb: () => {
+    return new Promise((res) => {
+      setTimeout(() => {
+        res({
+          brand: "bmw",
+          name: "z4",
+          color: "red",
+        });
+      }, 500);
+    });
+  },
+  disConnectCarDb: () => {
+    return new Promise((res) => {
+      setTimeout(() => {
+        res();
+      }, 500);
+    });
+  },
+};
+-> Car라는 정보를 추가
+
+// Test
+let user;
+
+beforeAll(async () => {
+  user = await fn.connectUserDb();
+});
+
+afterAll(() => {
+  return fn.disConnectDb();
+});
+
+test("이름은 Mike", () => {
+  expect(user.name).toBe("Mike");
+});
+test("나이는 30", () => {
+  expect(user.age).toBe(30);
+});
+test("성별은 남성", () => {
+  expect(user.gender).toBe("male");
+});
+
+describe("Car 관련 작업", () => {
+  let car;
+
+  beforeAll(async () => {
+    car = await fn.connectCarDb();
+  });
+
+  afterAll(() => {
+    return fn.disConnectCarDb();
+  });
+
+  test("Car 브랜드는 bmw", () => {
+    expect(car.brand).toBe("bmw");
+  });
+  test("Car 이름은 z4", () => {
+    expect(car.name).toBe("z4");
+  });
+  test("Car 색상은 Red", () => {
+    expect(car.color).toBe("red");
+  });
+});
+-> describe('',()=>{})를 사용하여 분리
+결과:
+  √ 이름은 Mike (5 ms)
+  √ 나이는 30 (1 ms)
+  √ 성별은 남성
+  Car 관련 작업
+    √ Car 브랜드는 bmw (1 ms)
+    √ Car 이름은 z4 (1 ms)
+    √ Car 색상은 Red (1 ms)
+
+    and 순서 위치
+beforeAll(() => console.log("밖 beforeAll")); //1
+beforeEach(() => console.log("밖 beforeEach")); //2, 6
+afterAll(() => console.log("밖 afterAll")); //4,10
+afterEach(() => console.log("밖 afterEach")); //마지막
+
+test("0 + 1 = 1", () => {
+  expect(fn.add(0, 1)).toBe(1); //3
+});
+
+describe("Car관련 작업", () => {
+  beforeAll(() => console.log("안 beforeAll")); //5
+  beforeEach(() => console.log("안 beforeEach")); //7
+  afterAll(() => console.log("안 afterAll")); //9
+  afterEach(() => console.log("안 afterEach")); // 마지막 -1 (마지막에서 두번째)
+
+  test("0 + 1 = 1", () => {
+    expect(fn.add(0, 1)).toBe(1); //8
+  });
+});
+
+  console.log
+    밖 beforeAll
+
+  console.log
+    밖 beforeEach
+
+  console.log
+    밖 afterEach
+
+  console.log
+    안 beforeAll
+
+  console.log
+    밖 beforeEach
+
+  console.log
+    안 beforeEach
+
+  console.log
+    안 afterEach
+
+  console.log
+    밖 afterEach
+
+  console.log
+    안 afterAll
+
+  console.log
+    밖 afterAll
+
+ and
+
+ let num = 0;
+test("0 더하기 1 은 1", () => {
+  expect(fn.add(num, 1)).toBe(1);
+});
+test("0 더하기 2 은 2", () => {
+  expect(fn.add(num, 2)).toBe(2);
+});
+test("0 더하기 3 은 3", () => {
+  expect(fn.add(num, 3)).toBe(3);
+});
+test("0 더하기 1 은 4", () => {
+  expect(fn.add(num, 4)).toBe(4);
+  num = 10;
+});
+test.only("0 더하기 1 은 5", () => {
+  expect(fn.add(num, 5)).toBe(5);
+});
+-> 마지막 테스트에서 실패
+->`only`를 사용해서 마지막 테스트만 확인 후 문제 테스트 코드에는 문제가 없는 걸 발견
+
+test.skip("0 더하기 1 은 4", () => {
+  expect(fn.add(num, 4)).toBe(4);
+  num = 10;
+});
+-> `skip`을 사용해서 `skip`을 사용한 테스트를 제외한 나머지를 테스트
+```
